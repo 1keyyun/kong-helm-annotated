@@ -1,0 +1,162 @@
+# Default values for kong.
+# Declare variables to be passed into your templates.
+
+#! there is no Docker Hub version of Kong EE. I recommend pulling the image from Bintray and adding it to your
+# provider's private registry, e.g. https://cloud.google.com/container-registry/ or https://aws.amazon.com/ecr/
+# If you make your own modifications on top of our default image, note that you'll want to add your own version
+# indicator to the tag, as the IfNotPresent pullPolicy won't pick up changes otherwise.
+image:
+  repository: kong
+  tag: 0.14.0
+  pullPolicy: IfNotPresent
+
+# Specify Kong admin and proxy services configurations
+admin:
+  # If you want to specify annotations for the admin service, uncomment the following
+  # line, add additional or adjust as needed, and remove the curly braces after 'annotations:'.
+  annotations: {}
+  #  service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+
+  #! the existing deployment/service templates are not designed to have dual HTTP/HTTPS support, which is probably
+  # desirable for the proxy at least (even if HTTP is only used to provide 301s to HTTPS). Extending the chart to allow
+  # this means adding something along the lines of separate servicePort/encryptedServicePort, and possibly the same for
+  # containerPort. In some deployments, dual HTTP/HTTPS may only exist at the Ingress Controller level, with traffic
+  # either redirected to HTTPS there or upgraded to HTTPS between the IC and Kong node.
+  #
+  # HTTPS traffic on the admin port
+  # if set to false also set readinessProbe and livenessProbe httpGet scheme's to 'HTTP'
+  useTLS: true
+  servicePort: 8444
+  containerPort: 8444
+  # Kong admin service type
+  type: NodePort
+  # Set a nodePort which is available
+  # nodePort: 32444
+proxy:
+  # If you want to specify annotations for the proxy service, uncomment the following
+  # line, add additional or adjust as needed, and remove the curly braces after 'annotations:'.
+  annotations: {}
+  #  service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+
+  # HTTPS traffic on the proxy port
+  useTLS: true
+  servicePort: 8443
+  containerPort: 8443
+  type: NodePort
+  # Set a nodePort which is available
+  # nodePort: 32443
+#! these entries do not exist in the CE chart, as they're EE-only features. These examples follow the same pattern as
+# the existing services, i.e. they're not yet adapted for dual HTTP/HTTPS.
+gui:
+  annotations: {}
+  useTLS: false
+  servicePort: 8002
+  containerPort: 8002
+  type: NodePort
+portal:
+  annotations: {}
+  useTLS: false
+  servicePort: 8003
+  containerPort: 8003
+  type: NodePort
+
+# Set runMigrations to run Kong migrations
+#! This should be false outside of the initial installation or upgrades. Although re-running migrations against the
+# same version is fine, it creates a job that has to be manually removed after. For my test environment, I upgrade all
+# Kong nodes in a cluster at once for simplicity by simply deleting the installation and recreating it with the same
+# name (our chart doesn't clear the database upon delete at present). We do not currently have a pre-upgrade hook to
+# handle migrations.
+runMigrations: true
+
+# Specify Kong configurations
+# Kong configurations guide https://getkong.org/docs/latest/configuration/
+#! the standard Helm chart we provide indicates the database type used here and most other configuration (contact
+# points/host, credentials, etc.) inside the DB section below. Those other settings are only applied if that database
+# is enabled, which in turn deploys an instance of that database as part of chart installation.
+# I personally do not use this as I manage the databases backing Kong separately from Kong instances, and instead
+# define all DB config in env.
+env:
+  database: postgres
+
+# If you want to specify resources, uncomment the following
+# lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+resources: {}
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+
+# readinessProbe for Kong pods
+readinessProbe:
+  httpGet:
+    path: "/status"
+    port: admin
+    scheme: HTTPS
+  initialDelaySeconds: 120
+  timeoutSeconds: 1
+  periodSeconds: 10
+  successThreshold: 1
+  failureThreshold: 5
+
+# livenessProbe for Kong pods
+livenessProbe:
+  httpGet:
+    path: "/status"
+    port: admin
+    scheme: HTTPS
+  initialDelaySeconds: 180
+  timeoutSeconds: 5
+  periodSeconds: 30
+  successThreshold: 1
+  failureThreshold: 5
+
+# Affinity for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+# affinity: {}
+
+# Tolerations for pod assignment
+# Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+tolerations: []
+
+# Node labels for pod assignment
+# Ref: https://kubernetes.io/docs/user-guide/node-selection/
+nodeSelector: {}
+
+# Annotation to be added to Kong pods
+podAnnotations: {}
+
+# Kong pod count
+replicaCount: 1
+
+# Flavor
+#! This is a quick toggle value I added remove configuration that breaks CE instances--due to the way I have services
+# laid out, not removing part of their configuration causes Kubernetes to attempt readiness probes on ports that CE
+# doesn't use. There's probably a better way to either detect or specify EE versus CE, but this was the simplest option
+# for now.
+flavor: "ce"
+
+# Kong has a choice of either Postgres or Cassandra as a backend datatstore.
+# This chart allows you to choose either of them with the `database.type`
+# parameter.  Postgres is chosen by default.
+
+# Additionally, this chart allows you to use your own database or spin up a new
+# instance by using the `postgres.enabled` or `cassandra.enabled` parameters.
+# Enabling both will create both databases in your cluster, but only one
+# will be used by Kong based on the `env.database` parameter.
+# Postgres is enabled by default.
+
+# Cassandra chart configs
+cassandra:
+  enabled: false
+
+# PostgreSQL chart configs
+#! note that this is enabled by default and will spawn a Postgres container/use it as Kong's datastore. Disable it if
+# you do not want this behavior.
+postgresql:
+  enabled: true
+  postgresUser: kong
+  postgresDatabase: kong
+  persistence:
+    enabled: false

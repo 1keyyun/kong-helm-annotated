@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-admin
+  annotations:
+    {{- range $key, $value := .Values.admin.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  labels:
+    app: {{ template "kong.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  type: {{ .Values.admin.type }}
+  {{- if and (eq .Values.admin.type "LoadBalancer") .Values.admin.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.admin.loadBalancerIP }}
+  {{- end }}
+  ports:
+  - name: {{ .Release.Name }}-admin
+    port: {{ .Values.admin.servicePort }}
+    targetPort: {{ .Values.admin.containerPort }}
+  {{- if (and (eq .Values.admin.type "NodePort") (not (empty .Values.admin.nodePort))) }}
+    nodePort: {{ .Values.admin.nodePort }}
+  {{- end }}
+    protocol: TCP
+  #! added for EE
+  {{- if eq .Values.flavor "ee" }}
+  - name: {{ .Release.Name }}-gui
+    port: {{ .Values.gui.servicePort }}
+    targetPort: {{ .Values.gui.containerPort }}
+  {{- if (and (eq .Values.gui.type "NodePort") (not (empty .Values.gui.nodePort))) }}
+    nodePort: {{ .Values.gui.nodePort }}
+  {{- end }}
+  {{- end }}
+    protocol: TCP
+  selector:
+    app: {{ template "kong.name" . }}
+    release: {{ .Release.Name }}

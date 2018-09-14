@@ -1,0 +1,190 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: "{{ template "kong.fullname" . }}"
+  labels:
+    app: "{{ template "kong.name" . }}"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "kong.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+    {{- if .Values.podAnnotations }}
+      annotations:
+{{ toYaml .Values.podAnnotations | indent 8 }}
+    {{- end }}
+      labels:
+        app: {{ template "kong.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ template "kong.name" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        {{- if .Values.admin.useTLS }}
+        - name: KONG_ADMIN_LISTEN
+          value: "0.0.0.0:{{ .Values.admin.containerPort }} ssl"
+        {{- else }}
+        - name: KONG_ADMIN_LISTEN
+          value: 0.0.0.0:{{ .Values.admin.containerPort }}
+        #! added for EE
+        {{- if eq .Values.flavor "ee" }}
+        - name: KONG_ADMIN_GUI_LISTEN
+          value: 0.0.0.0:{{ .Values.gui.containerPort }}
+        {{- end }}
+        {{- end }}
+        #! this is (weirdly) not in the CE chart, and appears to be an oversight--nothing defines the keyspace in the
+        # chart, so it will use the default ("kong") always. For my use case, I use a slightly modified version of
+        # the release name, since I spin up new environments frequently. For more typical use cases, it's probably fine
+        # to specify this in values.yaml as part of the env.
+        {{- if eq .Values.env.database "cassandra" }}
+        {{ $keyspace := .Release.Name | replace "-" "" -}}
+        - name: KONG_CASSANDRA_CONTACT_POINTS
+          value: {{ .Values.cassandra.contactPoints | default "cassandra" }}
+        - name: KONG_CASSANDRA_KEYSPACE
+          value: {{ .Values.cassandra.keyspace | default $keyspace }}
+        {{- end}}
+        {{- if .Values.proxy.useTLS }}
+        - name: KONG_PROXY_LISTEN
+          value: "0.0.0.0:{{ .Values.proxy.containerPort }} ssl"
+        {{- else }}
+        - name: KONG_PROXY_LISTEN
+          value: 0.0.0.0:{{ .Values.proxy.containerPort }}
+        {{- end }}
+        - name: KONG_NGINX_DAEMON
+          value: "off"
+        - name: KONG_PROXY_ACCESS_LOG
+          value: "/dev/stdout"
+        - name: KONG_ADMIN_ACCESS_LOG
+          value: "/dev/stdout"
+        - name: KONG_PROXY_ERROR_LOG
+          value: "/dev/stderr"
+        - name: KONG_ADMIN_ERROR_LOG
+          value: "/dev/stderr"
+        #! added for EE
+        - name: KONG_VITALS
+          value: "on"
+        - name: KONG_PORTAL
+          value: "on"
+        #! not in the CE chart. Not technically EE-specific, but the only places Kong needs to know how it can reach
+        # other Kong components are in web UIs, which only exist in EE at present.
+        - name: KONG_PROXY_URL
+          value: http://{{ .Release.Name }}.proxy.kong.example
+        - name: KONG_ADMIN_API_URI
+          value: http://{{ .Release.Name }}.admin.kong.example
+        - name: KONG_PORTAL_GUI_URL
+          value: http://{{ .Release.Name }}.portal.kong.example
+        #! added for EE, but likely no longer relevant due to changes in 0.32
+        - name: KONG_PORTAL_API_LISTEN
+          value: 0.0.0.0:8004
+        #! added for EE. I do not spawn my license as part of my chart, as it's shared across all instances. This adds
+        # the reference, but does not create the license Secret itself.
+        - name: KONG_LICENSE_DATA
+          valueFrom:
+            secretKeyRef:
+              name: license
+              key: license
+        {{- range $key, $val := .Values.env }}
+        - name: KONG_{{ $key | upper}}
+          value: {{ $val | quote }}
+        {{- end}}
+        {{- if .Values.postgresql.enabled }}
+        - name: KONG_PG_HOST
+          value: {{ template "kong.postgresql.fullname" . }}
+        - name: KONG_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "kong.postgresql.fullname" . }}
+              key: postgres-password
+        {{- end }}
+        {{- if .Values.cassandra.enabled }}
+        - name: KONG_CASSANDRA_CONTACT_POINTS
+          value: {{ template "kong.cassandra.fullname" . }}
+        {{- end }}
+        ports:
+        #! several items added for EE
+        - name: admin
+          containerPort: {{ .Values.admin.containerPort }}
+          protocol: TCP
+        - name: proxy
+          containerPort: {{ .Values.proxy.containerPort }}
+          protocol: TCP
+        {{- if eq .Values.flavor "ee" }}
+        - name: gui
+          containerPort: {{ .Values.gui.containerPort }}
+          protocol: TCP
+        - name: portal
+          containerPort: {{ .Values.portal.containerPort }}
+          protocol: TCP
+        {{- end }}
+        readinessProbe:
+{{ toYaml .Values.readinessProbe | indent 10 }}
+        livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 10 }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+    {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+    {{- end }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+
+---
+#! not in the CE chart at all. I use this because my instances are behind an IC, and this creates basic hostnames for
+# the standard Kong EE services. I don't like this DNS scheme, but it's easy to use since I can use a single wildcard
+# record per service for all of my instances.
+# IC behavior may vary between implementations, but the nginx IC at least slurps up all Ingress objects in a cluster
+# (including those from other workspaces by default, which I've turned off) and combines them into one big ingress
+# ruleset. This allows defining separate Ingress objects per Kong instance. It also allows defining non-generic
+# hostnames (i.e. hostnames you use in a host-based route) separately.
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  name: "{{ .Release.Name }}-ingress"
+  namespace: default
+spec:
+  rules:
+    - host: {{ .Release.Name }}.admin.kong.example
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Release.Name }}-admin
+              servicePort: 8001
+            path: /
+    - host: {{ .Release.Name }}.gui.kong.example
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Release.Name }}-admin
+              servicePort: 8002
+            path: /
+    - host: {{ .Release.Name }}.proxy.kong.example
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Release.Name }}-proxy
+              servicePort: 8000
+            path: /
+    - host: {{ .Release.Name }}.portal.kong.example
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Release.Name }}-proxy
+              servicePort: 8003
+            path: /
+

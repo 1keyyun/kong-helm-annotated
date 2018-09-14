@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-proxy
+  annotations:
+    {{- range $key, $value := .Values.proxy.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  labels:
+    app: {{ template "kong.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  type: {{ .Values.proxy.type }}
+  {{- if and (eq .Values.proxy.type "LoadBalancer") .Values.proxy.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.proxy.loadBalancerIP }}
+  {{- end }}
+  externalTrafficPolicy: Local
+  ports:
+  - name: {{ .Release.Name }}-proxy
+    port: {{ .Values.proxy.servicePort }}
+    targetPort: {{ .Values.proxy.containerPort }}
+  {{- if (and (eq .Values.proxy.type "NodePort") (not (empty .Values.proxy.nodePort))) }}
+    nodePort: {{ .Values.proxy.nodePort }}
+  {{- end }}
+    protocol: TCP
+  #! added for EE
+  {{- if eq .Values.flavor "ee" }}
+  - name: {{ .Release.Name }}-portal
+    port: {{ .Values.portal.servicePort }}
+    targetPort: {{ .Values.portal.containerPort }}
+  {{- if (and (eq .Values.portal.type "NodePort") (not (empty .Values.portal.nodePort))) }}
+    nodePort: {{ .Values.portal.nodePort }}
+  {{- end }}
+    protocol: TCP
+  {{- end }}
+  selector:
+    app: {{ template "kong.name" . }}
+    release: {{ .Release.Name }}
