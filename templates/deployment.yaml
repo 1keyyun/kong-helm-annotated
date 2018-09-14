@@ -76,11 +76,11 @@ spec:
         #! not in the CE chart. Not technically EE-specific, but the only places Kong needs to know how it can reach
         # other Kong components are in web UIs, which only exist in EE at present.
         - name: KONG_PROXY_URL
-          value: http://{{ .Release.Name }}.proxy.kong.example
+          value: {{ .Values.proxy.url | default (printf "http://%s.proxy.kong.example" .Release.Name) }}
         - name: KONG_ADMIN_API_URI
-          value: http://{{ .Release.Name }}.admin.kong.example
+          value: {{ .Values.admin.url | default (printf "http://%s.admin.kong.example" .Release.Name) }}
         - name: KONG_PORTAL_GUI_URL
-          value: http://{{ .Release.Name }}.portal.kong.example
+          value: {{ .Values.portal.url | default (printf "http://%s.portal.kong.example" .Release.Name) }}
         #! added for EE, but likely no longer relevant due to changes in 0.32
         - name: KONG_PORTAL_API_LISTEN
           value: 0.0.0.0:8004

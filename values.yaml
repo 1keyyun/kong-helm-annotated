@@ -32,6 +32,8 @@ admin:
   type: NodePort
   # Set a nodePort which is available
   # nodePort: 32444
+  # Set a URL if you do not access the admin API using the generated Ingress configuration
+  # url: http://{{ .Release.Name }}.admin.kong.example
 proxy:
   # If you want to specify annotations for the proxy service, uncomment the following
   # line, add additional or adjust as needed, and remove the curly braces after 'annotations:'.
@@ -45,6 +47,8 @@ proxy:
   type: NodePort
   # Set a nodePort which is available
   # nodePort: 32443
+  # Set a URL if you do not access the proxy using the generated Ingress configuration
+  # url: http://{{ .Release.Name }}.proxy.kong.example
 #! these entries do not exist in the CE chart, as they're EE-only features. These examples follow the same pattern as
 # the existing services, i.e. they're not yet adapted for dual HTTP/HTTPS.
 gui:
@@ -59,6 +63,8 @@ portal:
   servicePort: 8003
   containerPort: 8003
   type: NodePort
+  # Set a URL if you do not access the Dev Portal using the generated Ingress configuration
+  # url: http://{{ .Release.Name }}.portal.kong.example
 
 # Set runMigrations to run Kong migrations
 #! This should be false outside of the initial installation or upgrades. Although re-running migrations against the
