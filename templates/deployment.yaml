@@ -79,8 +79,14 @@ spec:
           value: {{ .Values.proxy.url | default (printf "http://%s.proxy.kong.example" .Release.Name) }}
         - name: KONG_ADMIN_API_URI
           value: {{ .Values.admin.url | default (printf "http://%s.admin.kong.example" .Release.Name) }}
-        - name: KONG_PORTAL_GUI_URL
-          value: {{ .Values.portal.url | default (printf "http://%s.portal.kong.example" .Release.Name) }}
+        - name: KONG_ADMIN_GUI_URL
+          value: {{ .Values.gui.url | default (printf "http://%s.gui.kong.example" .Release.Name) }}
+        - name: KONG_PORTAL_API_URL
+          value: {{ .Values.files.url | default (printf "http://%s.files.kong.example" .Release.Name) }}
+        - name: KONG_PORTAL_GUI_HOST
+          value: {{ .Values.portal.host | default (printf "%s.portal.kong.example" .Release.Name) }}
+        - name: KONG_PORTAL_GUI_PROTOCOL
+          value: {{ .Values.portal.protocol | default "http" }}
         #! added for EE, but likely no longer relevant due to changes in 0.32
         - name: KONG_PORTAL_API_LISTEN
           value: 0.0.0.0:8004
