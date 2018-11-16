@@ -65,6 +65,14 @@ portal:
   type: NodePort
   # Set a URL if you do not access the Dev Portal using the generated Ingress configuration
   # url: http://{{ .Release.Name }}.portal.kong.example
+files:
+  annotations: {}
+  useTLS: false
+  servicePort: 8004
+  containerPort: 8004
+  type: NodePort
+  # url: http://{{ .Release.Name }}.portal.kong.example
+
 
 # Set runMigrations to run Kong migrations
 #! This should be false outside of the initial installation or upgrades. Although re-running migrations against the
