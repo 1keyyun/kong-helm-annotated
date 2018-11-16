@@ -187,4 +187,11 @@ spec:
               serviceName: {{ .Release.Name }}-proxy
               servicePort: 8003
             path: /
+    - host: {{ .Release.Name }}.files.kong.example
+      http:
+        paths:
+          - backend:
+              serviceName: {{ .Release.Name }}-proxy
+              servicePort: 8004
+            path: /
 
