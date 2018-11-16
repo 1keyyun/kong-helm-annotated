@@ -92,6 +92,31 @@ runMigrations: true
 env:
   database: postgres
 
+# Enable/disable Kong Enterprise features and set required settings
+enterprise:
+  vitals:
+    enabled: true
+  portal:
+    enabled: true
+  rbac:
+    enabled: false
+    admin_gui_auth: basic-auth
+  smtp:
+    # SMTP is used for administrator and Portal developer invites
+    # It is disabled by default (using the smtp_mock setting) as enabling it without configuring it will block Kong startup
+    # While disabled, administrator and developer invitations have reduced functionality
+    # Although the example configuration here will allow Kong to start with SMTP enabled, SMTP features will not function
+    enabled: false
+    portal_emails_from: none@example.com
+    portal_emails_reply_to: none@example.com
+    smtp_admin_emails: none@example.com
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    smtp_starttls: on
+    smtp_username: postmaster@example.com
+    smtp_password: hunter2
+
+
 # If you want to specify resources, uncomment the following
 # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
 resources: {}
