@@ -7,7 +7,7 @@ This chart is a work in progress expanding on the [existing chart](https://githu
 
 Most documentation is in the chart itself. In-progress sections typically include a longer comment prefixed with `#!`.
 
-By default, this chart installs Kong Community. Kong Enterprise users should set `flavor: ee` in `values.yaml` and specify their Docker registry (as there is no public Kong Enterprise registry).
+By default, this chart installs Kong Community. Kong Enterprise users should set `enterprise.enabled: true` in `values.yaml` and specify their Docker registry (as there is no public Kong Enterprise registry).
 
 ## Container registry
 

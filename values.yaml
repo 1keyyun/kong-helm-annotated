@@ -94,6 +94,7 @@ env:
 
 # Enable/disable Kong Enterprise features and set required settings
 enterprise:
+  enabled: false
   vitals:
     enabled: true
   portal:

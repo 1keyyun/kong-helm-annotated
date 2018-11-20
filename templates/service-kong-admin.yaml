@@ -25,7 +25,7 @@ spec:
   {{- end }}
     protocol: TCP
   #! added for EE
-  {{- if eq .Values.flavor "ee" }}
+  {{- if eq .Values.enterprise.enabled }}
   - name: {{ .Release.Name }}-gui
     port: {{ .Values.gui.servicePort }}
     targetPort: {{ .Values.gui.containerPort }}

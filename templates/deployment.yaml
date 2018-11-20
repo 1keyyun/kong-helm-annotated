@@ -35,7 +35,7 @@ spec:
         - name: KONG_ADMIN_LISTEN
           value: 0.0.0.0:{{ .Values.admin.containerPort }}
         #! added for EE
-        {{- if eq .Values.flavor "ee" }}
+        {{- if eq .Values.enterprise.enabled }}
         - name: KONG_ADMIN_GUI_LISTEN
           value: 0.0.0.0:{{ .Values.gui.containerPort }}
         {{- end }}
@@ -69,10 +69,20 @@ spec:
         - name: KONG_ADMIN_ERROR_LOG
           value: "/dev/stderr"
         #! added for EE
+        {{- if eq .Values.enterprise.vitals.enabled }}
         - name: KONG_VITALS
           value: "on"
+        {{- end }}
+        {{- if eq .Values.enterprise.portal.enabled }}
         - name: KONG_PORTAL
           value: "on"
+        {{- end }}
+        {{- if eq .Values.enterprise.rbac.enabled }}
+        - name: KONG_ENFORCE_RBAC
+          value: "on"
+        - name: KONG_ADMIN_GUI_AUTH
+          value: {{ .Values.enterprise.rbac.admin_gui_auth | default "basic-auth" }}
+        {{- end }}
         #! not in the CE chart. Not technically EE-specific, but the only places Kong needs to know how it can reach
         # other Kong components are in web UIs, which only exist in EE at present.
         - name: KONG_PROXY_URL
@@ -122,7 +132,7 @@ spec:
         - name: proxy
           containerPort: {{ .Values.proxy.containerPort }}
           protocol: TCP
-        {{- if eq .Values.flavor "ee" }}
+        {{- if eq .Values.enterprise.enabled }}
         - name: gui
           containerPort: {{ .Values.gui.containerPort }}
           protocol: TCP
