@@ -83,6 +83,23 @@ spec:
         - name: KONG_ADMIN_GUI_AUTH
           value: {{ .Values.enterprise.rbac.admin_gui_auth | default "basic-auth" }}
         {{- end }}
+        {{- if eq .Values.enterprise.smtp.enabled }}
+        - name: KONG_PORTAL_EMAILS_REPLY_TO
+          value: {{ .Values.enterprise.smtp.portal_emails_reply_to }}
+        - name: KONG_SMTP_HOST
+          value: {{ .Values.enterprise.smtp.smtp_host }}
+        - name: KONG_SMTP_PORT
+          value: {{ .Values.enterprise.smtp.smtp_port }}
+        - name: KONG_SMTP_STARTTLS
+          value: {{ .Values.enterprise.smtp.smtp_starttls }}
+        - name: KONG_SMTP_USERNAME
+          value: {{ .Values.enterprise.smtp.smtp_username }}
+        - name: KONG_PORTAL_SMTP_PASSWORD
+          value: {{ .Values.enterprise.smtp.smtp_password }}
+        {{- else }}
+        - name: KONG_SMTP_MOCK
+          value: "on"
+        {{- end }}
         #! not in the CE chart. Not technically EE-specific, but the only places Kong needs to know how it can reach
         # other Kong components are in web UIs, which only exist in EE at present.
         - name: KONG_PROXY_URL
